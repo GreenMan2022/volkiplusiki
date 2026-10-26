@@ -89,6 +89,7 @@
   button:active{transform:translateY(5px);box-shadow:0 3px 0 #3f7a16,0 6px 14px rgba(111,191,46,.3)}
   .hint{color:#5d6c81;font-size:12.5px;letter-spacing:.6px;margin-top:4px}
 
+  /* ---------- Счётчик заходов ---------- */
   #globalCounter{
     margin-top: 12px;
     color: #93a3b8;
@@ -103,6 +104,65 @@
   }
   #globalCounter.show{ display: inline-block; }
   #globalCounter b{ color: #7dd3fc; font-weight: 800; }
+
+  /* ---------- Статистика (модалка) ---------- */
+  #statsBtn{
+    position: absolute; top: 14px; right: 14px; z-index: 6;
+    pointer-events: auto; cursor: pointer;
+    background: rgba(10,18,30,.72);
+    border: 1px solid rgba(255,255,255,.1);
+    color: inherit; font: inherit; font-weight: 700; font-size: 16px;
+    padding: 8px 12px; border-radius: 12px;
+    box-shadow: 0 6px 18px rgba(0,0,0,.35);
+    transition: transform .08s, border-color .15s, background .15s;
+  }
+  #statsBtn:hover{ border-color: rgba(125,211,252,.4); background: rgba(16,26,34,.9); }
+  #statsBtn:active{ transform: scale(.95); }
+
+  #statsModal{
+    position: fixed; inset: 0; padding: 16px;
+    background: rgba(4,8,12,.72);
+    display: none; align-items: center; justify-content: center;
+    z-index: 1000; backdrop-filter: blur(4px);
+  }
+  #statsModal.open{ display: flex; }
+  .modal{
+    background: #16212b; border: 1px solid rgba(255,255,255,.1);
+    border-radius: 16px; padding: 22px;
+    width: 100%; max-width: 460px; max-height: 90vh; overflow-y: auto;
+    box-shadow: 0 30px 70px rgba(0,0,0,.6);
+    animation: pop .18s ease-out;
+    text-align: left;
+  }
+  @keyframes pop { from { transform: scale(.94); opacity: 0 } to { transform: scale(1); opacity: 1 } }
+  .modal h2{ margin: 0 0 16px; font-size: 20px; color:#e8f0f5; }
+  .stats-grid{
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+    margin-bottom: 18px;
+  }
+  .stat-card{
+    background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.06);
+    border-radius: 10px; padding: 10px 12px;
+  }
+  .stat-card .label{ font-size: 11px; color: #8fa3b3; text-transform: uppercase; letter-spacing: .5px; }
+  .stat-card .value{ font-size: 18px; font-weight: 700; margin-top: 3px; color: #e8f0f5; }
+  .stat-card.highlight .value{ color: #8ee6a8; }
+  .stat-card.global{
+    grid-column: 1 / -1;
+    background: rgba(120,220,160,.08);
+    border-color: rgba(120,220,160,.3);
+  }
+  .stat-card.global .value{ color: #b3f5cd; }
+  .modal-actions{ display: flex; gap: 8px; }
+  .modal-actions button{
+    flex: 1; padding: 10px; border-radius: 10px;
+    border: 1px solid rgba(255,255,255,.15);
+    background: #1c2a36; color: #e8f0f5; font: inherit; font-weight: 600; cursor: pointer;
+    transition: background .15s, border-color .15s;
+  }
+  .modal-actions button:hover{ background: #223442; border-color: rgba(255,255,255,.25); }
+  .modal-actions button.danger{ color: #ff9090; border-color: rgba(255,120,120,.3); }
+  .modal-actions button.danger:hover{ background: rgba(255,100,100,.1); }
 
   #finalScore{
     font-size:58px;font-weight:900;color:#a7e85c;line-height:1;
@@ -134,6 +194,8 @@
     <div id="combo"></div>
   </div>
 
+  <button id="statsBtn" title="Статистика">📊</button>
+
   <div class="overlay" id="menu">
     <div class="emoji">🐺➕</div>
     <h1>Волк и Плюсики</h1>
@@ -157,87 +219,29 @@
   </div>
 </div>
 
+<div id="statsModal">
+  <div class="modal">
+    <h2>📊 Статистика</h2>
+    <div class="stats-grid" id="statsGrid"></div>
+    <div class="modal-actions">
+      <button class="danger" id="resetStats">Сбросить мои</button>
+      <button id="closeStats">Закрыть</button>
+    </div>
+  </div>
+</div>
+
 <script>
 (function(){
   'use strict';
 
   /* ========================================================
-     YANDEX GAMES SDK
-     ======================================================== */
-  let ysdk = null;
-  let sdkReady = false;
-
-  // Загружаем SDK. Путь /sdk.js — относительный, обязателен при загрузке
-  // архива на сервер Яндекса[reference:1].
-  (function loadYandexSDK(){
-    const script = document.createElement('script');
-    script.src = '/sdk.js';
-    script.async = true;
-    script.onload = initYandexSDK;
-    script.onerror = () => {
-      console.warn('Yandex SDK не загрузился (возможно, локальный запуск)');
-      sdkReady = true; // чтобы игра работала и без SDK
-    };
-    document.head.appendChild(script);
-  })();
-
-  async function initYandexSDK(){
-    try {
-      ysdk = await YaGames.init();
-      sdkReady = true;
-
-      // Сообщаем платформе, что игра загрузилась и можно играть[reference:2]
-      ysdk.features.LoadingAPI?.ready();
-      console.log('Yandex SDK готов');
-    } catch(e){
-      console.warn('Ошибка инициализации Yandex SDK:', e);
-      sdkReady = true; // не блокируем игру
-    }
-  }
-
-  // ---- Реклама ----
-  function showInterstitialAd(onClose){
-    if (!ysdk || !ysdk.adv){
-      if (onClose) onClose();
-      return;
-    }
-    try {
-      ysdk.adv.showFullscreenAdv({
-        callbacks: {
-          onClose: (wasShown) => {
-            console.log(wasShown ? 'Реклама показана' : 'Реклама не показана');
-            if (onClose) onClose();
-          },
-          onError: (e) => {
-            console.warn('Ошибка рекламы:', e);
-            if (onClose) onClose();
-          }
-        }
-      });
-    } catch(e){
-      console.warn('Не удалось вызвать рекламу:', e);
-      if (onClose) onClose();
-    }
-  }
-
-  // ---- Геймплейные события ----
-  function gameplayStart(){
-    if (ysdk && ysdk.features && ysdk.features.GameplayAPI){
-      ysdk.features.GameplayAPI.start();
-    }
-  }
-  function gameplayStop(){
-    if (ysdk && ysdk.features && ysdk.features.GameplayAPI){
-      ysdk.features.GameplayAPI.stop();
-    }
-  }
-
-  /* ========================================================
      ГЛОБАЛЬНЫЙ СЧЁТЧИК (Abacus)
+     Тот же сервис, что и в ДТП-Кликере.
      ======================================================== */
   const GLOBAL_NS  = 'volkiplyusiki';
   const GLOBAL_KEY = 'visits';
   const SESSION_FLAG = 'volk_plus_counted';
+  /* ======================================================== */
 
   const wrap     = document.getElementById('wrap');
   const canvas   = document.getElementById('c');
@@ -255,6 +259,9 @@
   const overEmojiEl= document.getElementById('overEmoji');
   const hintEl     = document.getElementById('hint');
   const counterEl  = document.getElementById('globalCounter');
+  const statsBtn   = document.getElementById('statsBtn');
+  const statsModal = document.getElementById('statsModal');
+  const statsGrid  = document.getElementById('statsGrid');
 
   let W = 0, H = 0, DPR = 1;
 
@@ -281,7 +288,7 @@
   };
 
   /* ================= Глобальный счётчик ================= */
-  let globalVisits;
+  let globalVisits; // undefined = загрузка, null = ошибка, number = значение
 
   async function loadGlobalCounter(){
     const shouldCount = !sessionStorage.getItem(SESSION_FLAG);
@@ -305,6 +312,7 @@
       globalVisits = null;
     }
     updateCounterUI();
+    updateStatsUI();
   }
 
   function updateCounterUI(){
@@ -315,6 +323,97 @@
       counterEl.classList.remove('show');
     }
   }
+
+  /* ================= Локальная статистика ================= */
+  const STATS_KEY = 'volk_plus_stats_v1';
+
+  let stats = (() => {
+    try {
+      const s = JSON.parse(localStorage.getItem(STATS_KEY));
+      if (s && typeof s === 'object') return s;
+    } catch(e) {}
+    return {
+      visits: 0, games: 0, bestScore: 0, maxCombo: 0,
+      totalScore: 0, totalTime: 0,
+      firstVisit: Date.now(), lastVisit: Date.now()
+    };
+  })();
+  stats.visits++;
+  stats.lastVisit = Date.now();
+
+  function saveStats(){
+    try { localStorage.setItem(STATS_KEY, JSON.stringify(stats)); } catch(e){}
+  }
+
+  function fmtNum(n){ return Math.floor(n).toLocaleString('ru-RU'); }
+  function fmtTime(s){
+    s = Math.floor(s);
+    const h = Math.floor(s/3600), m = Math.floor((s%3600)/60), sec = s%60;
+    return (h ? h + 'ч ' : '') + (m ? m + 'м ' : '') + sec + 'с';
+  }
+
+  function updateStatsUI(){
+    if (!statsGrid) return;
+
+    const cards = [];
+
+    if (typeof globalVisits === 'number'){
+      cards.push({ label: '🌍 Всего заходов в игру', value: fmtNum(globalVisits), global: true });
+    } else if (globalVisits === null){
+      cards.push({ label: '🌍 Глобальный счётчик', value: '—', global: true });
+    } else {
+      cards.push({ label: '🌍 Глобальный счётчик', value: 'загрузка…', global: true });
+    }
+
+    cards.push(
+      { label: 'Ваши заходы',        value: fmtNum(stats.visits) },
+      { label: 'Игр сыграно',         value: fmtNum(stats.games) },
+      { label: 'Рекорд плюсиков',     value: fmtNum(stats.bestScore), highlight: true },
+      { label: 'Макс. комбо',         value: '×' + fmtNum(stats.maxCombo) },
+      { label: 'Всего плюсиков',      value: fmtNum(stats.totalScore) },
+      { label: 'Время в игре',        value: fmtTime(stats.totalTime) }
+    );
+
+    statsGrid.innerHTML = cards.map(c =>
+      `<div class="stat-card${c.highlight ? ' highlight' : ''}${c.global ? ' global' : ''}">
+         <div class="label">${c.label}</div>
+         <div class="value">${c.value}</div>
+       </div>`
+    ).join('');
+  }
+
+  statsBtn.addEventListener('click', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    updateStatsUI();
+    statsModal.classList.add('open');
+  });
+  document.getElementById('closeStats').addEventListener('click', () => {
+    statsModal.classList.remove('open');
+  });
+  statsModal.addEventListener('click', e => {
+    if (e.target === statsModal) statsModal.classList.remove('open');
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') statsModal.classList.remove('open');
+  });
+  document.getElementById('resetStats').addEventListener('click', () => {
+    if (!confirm('Сбросить вашу локальную статистику?')) return;
+    localStorage.removeItem(STATS_KEY);
+    sessionStorage.removeItem(SESSION_FLAG);
+    stats = {
+      visits: 0, games: 0, bestScore: 0, maxCombo: 0,
+      totalScore: 0, totalTime: 0,
+      firstVisit: Date.now(), lastVisit: Date.now()
+    };
+    saveStats();
+    updateStatsUI();
+  });
+
+  window.addEventListener('beforeunload', saveStats);
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) saveStats();
+  });
 
   /* ================= utils ================= */
   function rr(x, y, w, h, r){
@@ -465,7 +564,11 @@
   document.getElementById('btnStart').addEventListener('click', startGame);
   document.getElementById('btnRestart').addEventListener('click', startGame);
 
+  let sessionStart = 0;
+
   function startGame(){
+    sessionStart = performance.now();
+
     game.mode = 'playing';
     game.score = 0;
     game.lives = MAX_LIVES;
@@ -487,9 +590,6 @@
     menuEl.classList.add('hidden');
     overEl.classList.add('hidden');
     updateHUD();
-
-    // Сообщаем SDK о старте геймплея[reference:3]
-    gameplayStart();
   }
 
   function gameOver(){
@@ -500,19 +600,20 @@
     beep(180, 0.35, 'sawtooth', 0.08);
     setTimeout(() => beep(110, 0.5, 'sawtooth', 0.08), 140);
 
-    // Сообщаем SDK об остановке геймплея[reference:4]
-    gameplayStop();
+    // обновляем локальную статистику
+    stats.games++;
+    stats.totalScore += game.score;
+    const sessionTime = (performance.now() - sessionStart) / 1000;
+    stats.totalTime += sessionTime;
+    if (game.score > stats.bestScore) stats.bestScore = game.score;
+    if (game.maxCombo > stats.maxCombo) stats.maxCombo = game.maxCombo;
+    saveStats();
 
     overTitleEl.textContent = 'Волк ушёл в минус';
     overEmojiEl.textContent = '💀';
     finalEl.textContent = game.score;
     bestEl.textContent = 'Комбо ×' + game.maxCombo;
-
-    // Показываем полноэкранную рекламу после проигрыша.
-    // Рекомендуется показывать её после действия пользователя[reference:5].
-    showInterstitialAd(() => {
-      overEl.classList.remove('hidden');
-    });
+    overEl.classList.remove('hidden');
   }
 
   /* ================= HUD ================= */
@@ -973,9 +1074,6 @@
 
   document.addEventListener('visibilitychange', () => {
     last = performance.now();
-    // При уходе со вкладки сообщаем SDK о паузе[reference:6]
-    if (document.hidden) gameplayStop();
-    else if (game.mode === 'playing') gameplayStart();
   });
 
 })();
