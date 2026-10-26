@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0e1726">
+<title>Волк и Плюсики</title>
+<style>
+  *{
+    margin:0;padding:0;box-sizing:border-box;
+    -webkit-tap-highlight-color:transparent;
+    -webkit-touch-callout:none;
+  }
+  html,body{
+    height:100%;width:100%;overflow:hidden;position:fixed;inset:0;
+    background:#070c15;overscroll-behavior:none;
+    -webkit-text-size-adjust:100%;
+  }
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    display:flex;align-items:center;justify-content:center;
+    user-select:none;-webkit-user-select:none;
+  }
+  #wrap{
+    position:relative;width:100%;height:100%;max-width:620px;max-height:960px;
+    overflow:hidden;background:#0e1726;
+    box-shadow:0 0 80px rgba(0,0,0,.7);
+    touch-action:none;
+  }
+  canvas{display:block;width:100%;height:100%;touch-action:none}
+
+  /* ---------- HUD ---------- */
+  #hud{
+    position:absolute;inset:0;pointer-events:none;padding:14px 16px;
+    display:flex;justify-content:space-between;align-items:flex-start;
+    font-weight:800;letter-spacing:.5px;
+  }
+  #scoreBox{
+    background:rgba(10,18,30,.55);border:1px solid rgba(139,195,74,.35);
+    border-radius:14px;padding:7px 14px;backdrop-filter:blur(6px);
+    box-shadow:0 4px 18px rgba(0,0,0,.35);
+    transition:border-color .15s, box-shadow .15s;
+  }
+  #scoreBox.flash{
+    border-color:#ff6b6b;
+    box-shadow:0 0 24px rgba(255,90,90,.65);
+  }
+  #score{font-size:26px;color:#a7e85c;line-height:1;display:block;transition:color .15s}
+  #scoreBox.flash #score{color:#ff8080}
+  #scoreLbl{font-size:10px;color:#7e8ea3;text-transform:uppercase;letter-spacing:1.4px}
+  #lives{font-size:20px;letter-spacing:2px;filter:drop-shadow(0 2px 6px rgba(0,0,0,.5))}
+  #combo{
+    position:absolute;left:50%;top:64px;transform:translateX(-50%) scale(.7);
+    font-size:20px;font-weight:900;color:#ffd54a;
+    text-shadow:0 0 18px rgba(255,213,74,.7);opacity:0;
+    transition:opacity .18s,transform .18s;white-space:nowrap;
+  }
+  #combo.on{opacity:1;transform:translateX(-50%) scale(1)}
+
+  /* ---------- Overlays ---------- */
+  .overlay{
+    position:absolute;inset:0;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:14px;padding:28px;text-align:center;
+    background:rgba(9,15,26,.84);backdrop-filter:blur(9px);
+    transition:opacity .25s;z-index:5;
+  }
+  .overlay.hidden{opacity:0;pointer-events:none}
+  .overlay h1{
+    font-size:clamp(26px,7vw,38px);font-weight:900;line-height:1.1;
+    background:linear-gradient(180deg,#c8f28a,#6fbf2e);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    filter:drop-shadow(0 4px 16px rgba(111,191,46,.35));
+  }
+  .overlay p{color:#93a3b8;font-size:15px;line-height:1.6;max-width:340px}
+  .overlay b{color:#a7e85c}
+  .overlay b.bad{color:#ff7b7b}
+  .emoji{font-size:52px;line-height:1;filter:drop-shadow(0 6px 14px rgba(0,0,0,.5))}
+  button{
+    font:inherit;font-weight:800;font-size:17px;letter-spacing:.4px;
+    color:#0b1220;cursor:pointer;border:0;border-radius:16px;
+    padding:15px 42px;margin-top:6px;
+    background:linear-gradient(180deg,#b5ec6e,#6fbf2e);
+    box-shadow:0 8px 0 #3f7a16, 0 14px 26px rgba(111,191,46,.32);
+    transition:transform .07s, box-shadow .07s;
+    touch-action:manipulation;
+    -webkit-user-select:none;user-select:none;
+  }
+  button:active{transform:translateY(5px);box-shadow:0 3px 0 #3f7a16,0 6px 14px rgba(111,191,46,.3)}
+  .hint{color:#5d6c81;font-size:12.5px;letter-spacing:.6px;margin-top:4px}
+  #playsLbl{
+    color:#7e8ea3;font-size:12.5px;letter-spacing:.5px;
+    background:rgba(20,32,50,.7);border:1px solid rgba(125,211,252,.18);
+    border-radius:999px;padding:6px 16px;margin-top:2px;
+  }
+  #playsLbl span{color:#7dd3fc;font-weight:800}
+  #finalScore{
+    font-size:58px;font-weight:900;color:#a7e85c;line-height:1;
+    text-shadow:0 0 34px rgba(167,232,92,.45);
+  }
+  #best{font-size:13.5px;color:#7e8ea3;letter-spacing:.5px;line-height:1.7}
+  #best span{color:#ffd54a;font-weight:800}
+  #overTitle{font-size:clamp(24px,6.4vw,34px)}
+
+  /* компактные экраны */
+  @media (max-height:640px){
+    .overlay{gap:10px;padding:18px}
+    .emoji{font-size:40px}
+    .overlay p{font-size:14px;line-height:1.45}
+    .overlay h1{font-size:clamp(22px,6vw,30px)}
+    button{padding:13px 34px;font-size:16px}
+    #finalScore{font-size:46px}
+  }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="c"></canvas>
+
+  <div id="hud">
+    <div id="scoreBox">
+      <span id="score">0</span>
+      <span id="scoreLbl">плюсиков</span>
+    </div>
+    <div id="lives"></div>
+    <div id="combo"></div>
+  </div>
+
+  <div class="overlay" id="menu">
+    <div class="emoji">🐺➕</div>
+    <h1>Волк и Плюсики</h1>
+    <p>Лови <b>плюсики</b> — они падают сверху.<br>
+       Пропустил плюсик — <b class="bad">−2 плюсика</b>.<br>
+       Плюсиков меньше нуля — <b class="bad">−жизнь</b>.<br>
+       Поймал <b class="bad">минус</b> — сразу <b class="bad">−жизнь</b>.</p>
+    <button id="btnStart">Погнали</button>
+    <div class="hint" id="hint">мышь · палец · ← →</div>
+    <div id="playsLbl">Заходов в игру: <span>0</span></div>
+  </div>
+
+  <div class="overlay hidden" id="over">
+    <div class="emoji" id="overEmoji">💀</div>
+    <h1 id="overTitle">Волк ушёл в минус</h1>
+    <div id="finalScore">0</div>
+    <p id="best">Рекорд: <span>0</span></p>
+    <button id="btnRestart">Ещё разок</button>
+    <div id="playsLbl2" class="hint" style="font-size:12.5px;color:#7e8ea3"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  /* ================= setup ================= */
+  const wrap     = document.getElementById('wrap');
+  const canvas   = document.getElementById('c');
+  const ctx      = canvas.getContext('2d');
+
+  const scoreBox   = document.getElementById('scoreBox');
+  const scoreEl    = document.getElementById('score');
+  const livesEl    = document.getElementById('lives');
+  const comboEl    = document.getElementById('combo');
+  const menuEl     = document.getElementById('menu');
+  const overEl     = document.getElementById('over');
+  const finalEl    = document.getElementById('finalScore');
+  const bestEl     = document.getElementById('best');
+  const overTitleEl= document.getElementById('overTitle');
+  const overEmojiEl= document.getElementById('overEmoji');
+  const hintEl     = document.getElementById('hint');
+  const playsLbl   = document.getElementById('playsLbl');
+  const playsLbl2  = document.getElementById('playsLbl2');
+
+  let W = 0, H = 0, DPR = 1;
+
+  const wolf = { x: 0, y: 0, w: 110, h: 95 };
+
+  const stars = [];
+
+  const MAX_LIVES    = 3;
+  const MISS_PENALTY = 2;   // сколько плюсиков снимается за пропуск
+
+  const game = {
+    mode: 'menu',
+    score: 0,
+    best: loadBest(),
+    plays: loadPlays(),
+    lives: MAX_LIVES,
+    combo: 0,
+    maxCombo: 0,
+    level: 1,
+    items: [],
+    parts: [],
+    floats: [],
+    spawnT: 0,
+    time: 0,
+    shake: 0
+  };
+
+  /* ================= storage ================= */
+  function loadBest(){ try { return Number(localStorage.getItem('volkPlusBest')||0)||0; } catch(e){ return 0; } }
+  function saveBest(v){ try { localStorage.setItem('volkPlusBest', String(v)); } catch(e){} }
+
+  function loadPlays(){ try { return Number(localStorage.getItem('volkPlusPlays')||0)||0; } catch(e){ return 0; } }
+  function savePlays(v){ try { localStorage.setItem('volkPlusPlays', String(v)); } catch(e){} }
+
+  function updatePlaysLabels(){
+    playsLbl.innerHTML = 'Заходов в игру: <span>' + game.plays + '</span>';
+    playsLbl2.textContent = 'Всего заходов: ' + game.plays;
+  }
+
+  /* ================= utils ================= */
+  function rr(x, y, w, h, r){
+    r = Math.min(r, Math.abs(w)/2, Math.abs(h)/2);
+    ctx.beginPath();
+    ctx.moveTo(x+r, y);
+    ctx.arcTo(x+w, y,   x+w, y+h, r);
+    ctx.arcTo(x+w, y+h, x,   y+h, r);
+    ctx.arcTo(x,   y+h, x,   y,   r);
+    ctx.arcTo(x,   y,   x+w, y,   r);
+    ctx.closePath();
+  }
+
+  function clamp(v, a, b){ return v < a ? a : (v > b ? b : v); }
+
+  /* ================= audio ================= */
+  let actx = null, muted = false;
+  function beep(freq, dur, type, vol){
+    if (muted) return;
+    try {
+      if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+      if (actx.state === 'suspended') actx.resume();
+      const o = actx.createOscillator();
+      const g = actx.createGain();
+      o.type = type || 'square';
+      o.frequency.setValueAtTime(freq, actx.currentTime);
+      g.gain.setValueAtTime(vol || 0.05, actx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + dur);
+      o.connect(g); g.connect(actx.destination);
+      o.start(); o.stop(actx.currentTime + dur + 0.02);
+    } catch(e){}
+  }
+
+  /* ================= resize / layout ================= */
+  function resize(){
+    const cw = canvas.clientWidth, ch = canvas.clientHeight;
+    if (Math.abs(cw - W) < 2 && Math.abs(ch - H) < 2) return;
+
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    W = cw;
+    H = ch;
+    canvas.width  = Math.round(W * DPR);
+    canvas.height = Math.round(H * DPR);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    layout();
+  }
+
+  function layout(){
+    const s = Math.max(0.7, Math.min(1, W / 430));
+    wolf.w = 112 * s;
+    wolf.h = 96  * s;
+    wolf.y = H - wolf.h - Math.max(34, H * 0.055);
+    if (wolf.x === 0) wolf.x = W / 2;
+    wolf.x = clamp(wolf.x, wolf.w/2, W - wolf.w/2);
+
+    stars.length = 0;
+    const n = Math.round((W * H) / 12000);
+    for (let i = 0; i < n; i++){
+      stars.push({
+        x: Math.random() * W,
+        y: Math.random() * H,
+        r: 0.6 + Math.random() * 1.6,
+        a: 0.15 + Math.random() * 0.5,
+        sp: 0.4 + Math.random() * 1.4,
+        ph: Math.random() * Math.PI * 2
+      });
+    }
+  }
+
+  window.addEventListener('resize', resize);
+  window.addEventListener('orientationchange', () => setTimeout(resize, 120));
+  if (window.visualViewport){
+    window.visualViewport.addEventListener('resize', resize);
+  }
+
+  /* ================= input (touch-ready) ================= */
+  const keys = { left: false, right: false };
+  let pointerTarget = null;
+  let activePointerId = null;
+
+  wrap.addEventListener('contextmenu', e => e.preventDefault());
+  ['gesturestart','gesturechange','gestureend'].forEach(t => {
+    document.addEventListener(t, e => e.preventDefault(), { passive: false });
+  });
+  canvas.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+  canvas.addEventListener('touchstart', () => {
+    if (!actx && !muted){
+      try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){}
+    }
+  }, { passive: true });
+
+  canvas.addEventListener('pointerdown', e => {
+    if (game.mode === 'playing') e.preventDefault();
+    if (e.pointerType !== 'mouse' && activePointerId !== null) return;
+
+    const r = canvas.getBoundingClientRect();
+    pointerTarget = e.clientX - r.left;
+
+    if (e.pointerType !== 'mouse') activePointerId = e.pointerId;
+    try { canvas.setPointerCapture(e.pointerId); } catch(_){}
+  });
+
+  canvas.addEventListener('pointermove', e => {
+    if (e.pointerType !== 'mouse' && e.pointerId !== activePointerId) return;
+    const r = canvas.getBoundingClientRect();
+    pointerTarget = e.clientX - r.left;
+    if (game.mode === 'playing') e.preventDefault();
+  });
+
+  canvas.addEventListener('pointerup', e => {
+    if (e.pointerType === 'mouse') return;
+    if (e.pointerId !== activePointerId) return;
+    activePointerId = null;
+  });
+
+  canvas.addEventListener('pointercancel', e => {
+    if (e.pointerType === 'mouse') return;
+    if (e.pointerId !== activePointerId) return;
+    activePointerId = null;
+    pointerTarget = null;
+  });
+
+  canvas.addEventListener('pointerleave', e => {
+    if (e.pointerType === 'mouse') pointerTarget = null;
+  });
+
+  window.addEventListener('keydown', e => {
+    if (e.code === 'ArrowLeft'  || e.code === 'KeyA') { keys.left = true;  pointerTarget = null; }
+    if (e.code === 'ArrowRight' || e.code === 'KeyD') { keys.right = true; pointerTarget = null; }
+    if (e.code === 'Space' || e.code === 'Enter'){
+      if (game.mode === 'menu' || game.mode === 'over') { e.preventDefault(); startGame(); }
+    }
+  });
+  window.addEventListener('keyup', e => {
+    if (e.code === 'ArrowLeft'  || e.code === 'KeyA') keys.left = false;
+    if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = false;
+  });
+
+  (function(){
+    try {
+      if (window.matchMedia('(pointer: coarse)').matches){
+        hintEl.textContent = 'води пальцем по экрану';
+      }
+    } catch(e){}
+  })();
+
+  /* ================= game flow ================= */
+  document.getElementById('btnStart').addEventListener('click', startGame);
+  document.getElementById('btnRestart').addEventListener('click', startGame);
+
+  function startGame(){
+    // ---- счётчик переходов в игру ----
+    game.plays++;
+    savePlays(game.plays);
+    updatePlaysLabels();
+
+    game.mode = 'playing';
+    game.score = 0;
+    game.lives = MAX_LIVES;
+    game.combo = 0;
+    game.maxCombo = 0;
+    game.level = 1;
+    game.items.length = 0;
+    game.parts.length = 0;
+    game.floats.length = 0;
+    game.spawnT = 0.45;
+    game.time = 0;
+    game.shake = 0;
+    wolf.x = W / 2;
+    pointerTarget = null;
+    activePointerId = null;
+
+    scoreBox.classList.remove('flash');
+
+    menuEl.classList.add('hidden');
+    overEl.classList.add('hidden');
+    updateHUD();
+  }
+
+  function gameOver(){
+    game.mode = 'over';
+    game.shake = 22;
+    pointerTarget = null;
+    activePointerId = null;
+    beep(180, 0.35, 'sawtooth', 0.08);
+    setTimeout(() => beep(110, 0.5, 'sawtooth', 0.08), 140);
+
+    if (game.score > game.best){
+      game.best = game.score;
+      saveBest(game.best);
+      overTitleEl.textContent = 'Новый рекорд!';
+      overEmojiEl.textContent = '🏆';
+    } else {
+      overTitleEl.textContent = 'Волк ушёл в минус';
+      overEmojiEl.textContent = '💀';
+    }
+    finalEl.textContent = game.score;
+    bestEl.innerHTML = 'Рекорд: <span>' + game.best + '</span> · Комбо ×' + game.maxCombo;
+    updatePlaysLabels();
+    overEl.classList.remove('hidden');
+  }
+
+  /* ================= HUD ================= */
+  let lastScore = -1, lastLives = -1, lastCombo = -1;
+  let flashTimer = null;
+
+  function flashScore(){
+    scoreBox.classList.remove('flash');
+    void scoreBox.offsetWidth;
+    scoreBox.classList.add('flash');
+    clearTimeout(flashTimer);
+    flashTimer = setTimeout(() => scoreBox.classList.remove('flash'), 340);
+  }
+
+  function updateHUD(){
+    if (game.score !== lastScore){
+      scoreEl.textContent = game.score;
+      lastScore = game.score;
+    }
+    if (game.lives !== lastLives){
+      livesEl.textContent = '❤️'.repeat(Math.max(0, game.lives)) + '🖤'.repeat(Math.max(0, MAX_LIVES - game.lives));
+      lastLives = game.lives;
+    }
+    const showCombo = game.combo >= 3;
+    if (showCombo !== lastCombo){
+      lastCombo = showCombo;
+      comboEl.classList.toggle('on', showCombo);
+    }
+    if (showCombo) comboEl.textContent = 'КОМБО ×' + game.combo;
+  }
+
+  /* ================= spawning ================= */
+  function spawnInterval(){ return Math.max(0.30, 0.92 - game.level * 0.055); }
+  function fallSpeed(){ return 148 + game.level * 21; }
+
+  function pickType(){
+    const r = Math.random();
+    const minusChance = Math.min(0.34, 0.11 + game.level * 0.024);
+    if (r < minusChance) return 'minus';
+    if (r < minusChance + 0.07) return 'gold';
+    return 'plus';
+  }
+
+  function spawnItem(){
+    const R = Math.max(15, Math.min(25, W * 0.052));
+    const type = pickType();
+    game.items.push({
+      x: R + Math.random() * Math.max(1, W - R * 2),
+      y: -R - 10,
+      r: R,
+      vy: fallSpeed() * (0.82 + Math.random() * 0.36),
+      type: type,
+      rot: (Math.random() - 0.5) * 0.7,
+      rotSp: (Math.random() - 0.5) * 1.6,
+      wob: Math.random() * Math.PI * 2,
+      wobAmp: 6 + Math.random() * 20
+    });
+  }
+
+  /* ================= effects ================= */
+  function burst(x, y, color, n){
+    for (let i = 0; i < n; i++){
+      const a = Math.random() * Math.PI * 2;
+      const s = 50 + Math.random() * 230;
+      game.parts.push({
+        x: x, y: y,
+        vx: Math.cos(a) * s,
+        vy: Math.sin(a) * s - 70,
+        life: 0.45 + Math.random() * 0.45,
+        max: 0.9,
+        color: color,
+        r: 1.8 + Math.random() * 3
+      });
+    }
+  }
+
+  function addFloat(x, y, text, color){
+    game.floats.push({
+      x: x, y: y, text: text, color: color,
+      vx: (Math.random() - 0.5) * 40,
+      vy: -70,
+      life: 1
+    });
+  }
+
+  /* ================= life loss ================= */
+  function loseLife(x, y){
+    game.lives--;
+    game.combo = 0;
+    game.shake = 16;
+    burst(x, y, '#ff5a5a', 14);
+    addFloat(x, y, '−жизнь', '#ff6b6b');
+    beep(130, 0.22, 'sawtooth', 0.07);
+    flashScore();
+    updateHUD();
+    if (game.lives <= 0) gameOver();
+  }
+
+  /* ================= catch handling ================= */
+  function catchItem(it, idx){
+    game.items.splice(idx, 1);
+
+    if (it.type === 'minus'){
+      loseLife(it.x, it.y - 6);
+      return;
+    }
+
+    const mult = 1 + Math.min(4, Math.floor(game.combo / 5));
+    const gain = (it.type === 'gold' ? 5 : 1) * mult;
+
+    game.score += gain;
+    game.combo++;
+    if (game.combo > game.maxCombo) game.maxCombo = game.combo;
+
+    const col = it.type === 'gold' ? '#ffd54a' : '#9be15d';
+    burst(it.x, it.y, col, it.type === 'gold' ? 20 : 8);
+    addFloat(it.x, it.y - 6, '+' + gain, col);
+    beep(it.type === 'gold' ? 900 : 620 + Math.min(300, game.combo * 18), 0.07, 'square', 0.045);
+
+    const nl = 1 + Math.floor(game.score / 15);
+    if (nl > game.level){
+      game.level = nl;
+      addFloat(W / 2, H * 0.26, 'УРОВЕНЬ ' + game.level, '#7dd3fc');
+      beep(1050, 0.16, 'triangle', 0.05);
+    }
+    updateHUD();
+  }
+
+  /* ================= update ================= */
+  function update(dt){
+    for (const s of stars) s.ph += dt * s.sp;
+
+    if (game.shake > 0) game.shake = Math.max(0, game.shake - dt * 55);
+
+    // частицы
+    for (let i = game.parts.length - 1; i >= 0; i--){
+      const p = game.parts[i];
+      p.vy += 620 * dt;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.life -= dt;
+      if (p.life <= 0) game.parts.splice(i, 1);
+    }
+    // всплывающий текст
+    for (let i = game.floats.length - 1; i >= 0; i--){
+      const f = game.floats[i];
+      f.x += f.vx * dt;
+      f.y += f.vy * dt;
+      f.vy *= 0.94;
+      f.life -= dt * 1.5;
+      if (f.life <= 0) game.floats.splice(i, 1);
+    }
+
+    if (game.mode !== 'playing') return;
+
+    game.time += dt;
+
+    /* --- движение волка --- */
+    let dir = 0;
+    if (keys.left)  dir -= 1;
+    if (keys.right) dir += 1;
+
+    if (dir !== 0){
+      wolf.x += dir * 640 * dt;
+    } else if (pointerTarget !== null){
+      wolf.x += (pointerTarget - wolf.x) * Math.min(1, dt * 20);
+    }
+    wolf.x = clamp(wolf.x, wolf.w / 2, W - wolf.w / 2);
+
+    /* --- спавн --- */
+    game.spawnT -= dt;
+    if (game.spawnT <= 0){
+      spawnItem();
+      game.spawnT = spawnInterval() * (0.68 + Math.random() * 0.68);
+    }
+
+    /* --- предметы --- */
+    const rimY = wolf.y;
+    const halfW = wolf.w * 0.5;
+
+    for (let i = game.items.length - 1; i >= 0; i--){
+      const it = game.items[i];
+
+      it.y += it.vy * dt;
+      it.x += Math.sin(game.time * 2.1 + it.wob) * it.wobAmp * dt;
+      it.rot += it.rotSp * dt;
+
+      if (it.x < it.r) it.x = it.r;
+      if (it.x > W - it.r) it.x = W - it.r;
+
+      // пойман?
+      const hitX = Math.abs(it.x - wolf.x) < halfW + it.r * 0.42;
+      const hitY = (it.y + it.r >= rimY) && (it.y - it.r < rimY + wolf.h * 0.9);
+
+      if (hitX && hitY){
+        catchItem(it, i);
+        if (game.mode !== 'playing') return;
+        continue;
+      }
+
+      // улетел вниз
+      if (it.y - it.r > H + 30){
+        game.items.splice(i, 1);
+
+        if (it.type === 'minus') continue;
+
+        // ---- пропущен плюсик: −2 плюсика ----
+        game.combo = 0;
+        game.score -= MISS_PENALTY;
+
+        if (game.score < 0){
+          // плюсиков не может быть меньше нуля → −жизнь, счёт обратно в 0
+          game.score = 0;
+          updateHUD();
+          loseLife(W / 2, H * 0.45);
+          if (game.mode !== 'playing') return;
+        } else {
+          addFloat(it.x, H - 44, '−' + MISS_PENALTY, '#ffab40');
+          burst(it.x, H - 40, '#ffab40', 5);
+          beep(260, 0.09, 'triangle', 0.04);
+          flashScore();
+          updateHUD();
+        }
+      }
+    }
+  }
+
+  /* ================= drawing ================= */
+  function drawBackground(){
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0,   '#0b1424');
+    g.addColorStop(0.55,'#111d2e');
+    g.addColorStop(1,   '#0a121e');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+
+    const gl = ctx.createRadialGradient(W/2, H + 40, 20, W/2, H + 40, H * 0.85);
+    gl.addColorStop(0, 'rgba(111,191,46,.16)');
+    gl.addColorStop(1, 'rgba(111,191,46,0)');
+    ctx.fillStyle = gl;
+    ctx.fillRect(0, 0, W, H);
+
+    for (const s of stars){
+      const a = s.a * (0.55 + 0.45 * Math.sin(s.ph));
+      ctx.globalAlpha = a;
+      ctx.fillStyle = '#cfe4ff';
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function drawWolf(){
+    const w = wolf.w, h = wolf.h;
+    const bob = Math.sin(game.time * 4) * 2;
+
+    ctx.save();
+    ctx.translate(wolf.x, wolf.y + bob);
+
+    ctx.globalAlpha = 0.32;
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.ellipse(0, h + 20, w * 0.48, 11, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    ctx.fillStyle = '#4e5c72';
+    ctx.beginPath();
+    ctx.moveTo(-w * 0.44, h * 0.10);
+    ctx.lineTo(-w * 0.66, -h * 0.42);
+    ctx.lineTo(-w * 0.12, -h * 0.04);
+    ctx.closePath(); ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo( w * 0.44, h * 0.10);
+    ctx.lineTo( w * 0.66, -h * 0.42);
+    ctx.lineTo( w * 0.12, -h * 0.04);
+    ctx.closePath(); ctx.fill();
+
+    ctx.fillStyle = '#c98a8a';
+    ctx.beginPath();
+    ctx.moveTo(-w * 0.40, h * 0.04);
+    ctx.lineTo(-w * 0.55, -h * 0.28);
+    ctx.lineTo(-w * 0.22, -h * 0.03);
+    ctx.closePath(); ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo( w * 0.40, h * 0.04);
+    ctx.lineTo( w * 0.55, -h * 0.28);
+    ctx.lineTo( w * 0.22, -h * 0.03);
+    ctx.closePath(); ctx.fill();
+
+    const bg = ctx.createLinearGradient(0, 0, 0, h);
+    bg.addColorStop(0,   '#97a5bc');
+    bg.addColorStop(0.55,'#7c8ba3');
+    bg.addColorStop(1,   '#566479');
+    ctx.fillStyle = bg;
+    ctx.beginPath();
+    ctx.moveTo(-w * 0.5, 0);
+    ctx.quadraticCurveTo(-w * 0.5, h, 0, h);
+    ctx.quadraticCurveTo( w * 0.5, h, w * 0.5, 0);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = '#241a2b';
+    ctx.beginPath();
+    ctx.ellipse(0, 0, w * 0.47, h * 0.125, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#f6f6ef';
+    for (const tx of [-0.30, -0.11, 0.11, 0.30]){
+      ctx.beginPath();
+      ctx.moveTo(w * tx - w * 0.045, -h * 0.045);
+      ctx.lineTo(w * tx + w * 0.045, -h * 0.045);
+      ctx.lineTo(w * tx, h * 0.075);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    ctx.fillStyle = '#c2ccdc';
+    ctx.beginPath();
+    ctx.ellipse(0, h * 0.63, w * 0.30, h * 0.21, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#2b3444';
+    ctx.beginPath();
+    ctx.ellipse(0, h * 0.53, w * 0.095, h * 0.062, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    for (const sx of [-1, 1]){
+      const ex = sx * w * 0.235;
+      const ey = h * 0.28;
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(ex, ey, w * 0.105, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#1b2230';
+      const px = ex + clamp((pointerTarget !== null ? (pointerTarget - wolf.x) : 0) * 0.0006, -1, 1) * w * 0.035;
+      ctx.beginPath();
+      ctx.arc(px, ey, w * 0.055, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = 'rgba(255,255,255,.85)';
+      ctx.beginPath();
+      ctx.arc(px - w * 0.02, ey - h * 0.03, w * 0.02, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.restore();
+  }
+
+  function drawItem(it){
+    const r = it.r;
+    ctx.save();
+    ctx.translate(it.x, it.y);
+    ctx.rotate(it.rot);
+
+    if (it.type === 'gold'){
+      ctx.shadowColor = 'rgba(255,200,60,.95)';
+      ctx.shadowBlur = 24;
+    }
+
+    let c1, c2;
+    if (it.type === 'minus'){ c1 = '#ff7b7b'; c2 = '#c62828'; }
+    else if (it.type === 'gold'){ c1 = '#ffe892'; c2 = '#f4a71b'; }
+    else { c1 = '#a8ea6f'; c2 = '#4ea82e'; }
+
+    const g = ctx.createLinearGradient(0, -r, 0, r);
+    g.addColorStop(0, c1);
+    g.addColorStop(1, c2);
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(0, 0, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    ctx.strokeStyle = 'rgba(255,255,255,.42)';
+    ctx.lineWidth = Math.max(1.5, r * 0.09);
+    ctx.stroke();
+
+    ctx.fillStyle = '#ffffff';
+    const s = r * 1.02;
+    const t = s * 0.30;
+    if (it.type === 'minus'){
+      rr(-s / 2, -t / 2, s, t, t / 2);
+      ctx.fill();
+    } else {
+      rr(-s / 2, -t / 2, s, t, t / 2); ctx.fill();
+      rr(-t / 2, -s / 2, t, s, t / 2); ctx.fill();
+    }
+
+    ctx.restore();
+  }
+
+  function drawEffects(){
+    for (const p of game.parts){
+      const a = clamp(p.life / p.max, 0, 1);
+      ctx.globalAlpha = a;
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r * (0.4 + a * 0.6), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (const f of game.floats){
+      const a = clamp(f.life, 0, 1);
+      ctx.globalAlpha = a;
+      ctx.font = '900 ' + Math.round(Math.min(26, W * 0.062)) + 'px -apple-system,Segoe UI,Roboto,sans-serif';
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = 'rgba(0,0,0,.55)';
+      ctx.strokeText(f.text, f.x, f.y);
+      ctx.fillStyle = f.color;
+      ctx.fillText(f.text, f.x, f.y);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function render(){
+    drawBackground();
+
+    ctx.save();
+    if (game.shake > 0){
+      ctx.translate((Math.random() - 0.5) * game.shake, (Math.random() - 0.5) * game.shake);
+    }
+
+    if (game.mode === 'playing' && activePointerId !== null && pointerTarget !== null){
+      ctx.save();
+      ctx.strokeStyle = 'rgba(167,232,92,.10)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([5, 12]);
+      ctx.beginPath();
+      ctx.moveTo(wolf.x, 0);
+      ctx.lineTo(wolf.x, wolf.y);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    for (const it of game.items) drawItem(it);
+    drawWolf();
+    drawEffects();
+
+    ctx.restore();
+  }
+
+  /* ================= main loop ================= */
+  let last = performance.now();
+  function loop(now){
+    let dt = (now - last) / 1000;
+    last = now;
+    if (dt > 0.05) dt = 0.05;
+
+    update(dt);
+    render();
+
+    requestAnimationFrame(loop);
+  }
+
+  /* ================= boot ================= */
+  resize();
+  wolf.x = W / 2;
+  updatePlaysLabels();
+  updateHUD();
+  requestAnimationFrame(loop);
+
+  document.addEventListener('visibilitychange', () => {
+    last = performance.now();
+  });
+
+})();
+</script>
+</body>
+</html>
