@@ -31,7 +31,6 @@
   }
   canvas{display:block;width:100%;height:100%;touch-action:none}
 
-  /* ---------- HUD ---------- */
   #hud{
     position:absolute;inset:0;pointer-events:none;padding:14px 16px;
     display:flex;justify-content:space-between;align-items:flex-start;
@@ -59,7 +58,6 @@
   }
   #combo.on{opacity:1;transform:translateX(-50%) scale(1)}
 
-  /* ---------- Overlays ---------- */
   .overlay{
     position:absolute;inset:0;display:flex;flex-direction:column;
     align-items:center;justify-content:center;gap:14px;padding:28px;text-align:center;
@@ -90,8 +88,13 @@
   }
   button:active{transform:translateY(5px);box-shadow:0 3px 0 #3f7a16,0 6px 14px rgba(111,191,46,.3)}
   .hint{color:#5d6c81;font-size:12.5px;letter-spacing:.6px;margin-top:4px}
+  #btnDebug{
+    background:rgba(20,32,50,.7);color:#7dd3fc;font-size:12px;
+    padding:8px 18px;margin-top:0;box-shadow:none;
+    border:1px solid rgba(125,211,252,.3);font-weight:700;
+  }
+  #btnDebug:active{transform:none;box-shadow:none;background:rgba(20,32,50,.9)}
 
-  /* ---------- Leaderboard ---------- */
   #leaderboard, #leaderboardOver{
     width:100%;max-width:360px;
     background:rgba(20,32,50,.6);
@@ -115,9 +118,13 @@
   #lbList .lb-name, #lbListOver .lb-name{flex:1;text-align:left;padding-left:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   #lbList .lb-score, #lbListOver .lb-score{color:#a7e85c;font-weight:800;font-variant-numeric:tabular-nums}
   #lbList .lb-empty, #lbListOver .lb-empty{color:#5d6c81;font-size:13px;justify-content:center}
-  .lb-status{font-size:11px;color:#5d6c81;margin-top:8px;letter-spacing:.4px}
+  .lb-status{
+    font-size:11px;color:#5d6c81;margin-top:8px;letter-spacing:.4px;
+    word-break:break-all;line-height:1.4;
+  }
+  .lb-status.err{color:#ff8a8a}
+  .lb-status.ok{color:#a7e85c}
 
-  /* ---------- Name input ---------- */
   .nameRow{
     display:flex;gap:8px;width:100%;max-width:340px;margin-top:4px;
   }
@@ -162,7 +169,6 @@
     <div id="combo"></div>
   </div>
 
-  <!-- МЕНЮ -->
   <div class="overlay" id="menu">
     <div class="emoji">🐺➕</div>
     <h1>Волк и Плюсики</h1>
@@ -183,9 +189,10 @@
       <ul id="lbList"><li class="lb-empty">загрузка…</li></ul>
       <div class="lb-status" id="lbStatus"></div>
     </div>
+
+    <button id="btnDebug">🔍 тест API</button>
   </div>
 
-  <!-- КОНЕЦ ИГРЫ -->
   <div class="overlay hidden" id="over">
     <div class="emoji" id="overEmoji">💀</div>
     <h1 id="overTitle">Волк ушёл в минус</h1>
@@ -212,12 +219,11 @@
   const DATABASE_ID = 207;
   const TABLE_ID    = 289;
 
-  // ⚠️ ВНИМАНИЕ: этот токен был показан в открытом чате.
-  // Перед публикацией игры обязательно перевыпустите его в панели Табрики
-  // (Настройки организации → API) и подставьте новый.
-  const TOKEN = 'tab_qqtg-r2LF16-Bmw20PbAbc_WgqCJ08eEe-IWowgkW4aTqhmn27Gggo4edj2YTcPh';
+  // ⚠️ Токен из чата — ПЕРЕВЫПУСТИТЕ его после проверки, что всё работает.
+  const TOKEN = 'tab_OqYOjqj2RH2BrKV44mTRebERXBJUsPVwiCLWc3UlAxcZXI3b5vWjZh2aigNIZQWF';
 
-  // Названия колонок в вашей таблице Табрики — должны совпадать ТОЧНО
+  // ⚠️ Проверьте названия колонок в таблице.
+  // Если они называются не name/score — измените здесь.
   const COL_NAME  = 'name';
   const COL_SCORE = 'score';
 
@@ -244,6 +250,7 @@
   const lbStatus   = document.getElementById('lbStatus');
   const lbListOver = document.getElementById('lbListOver');
   const lbStatusOver = document.getElementById('lbStatusOver');
+  const btnDebug   = document.getElementById('btnDebug');
 
   let W = 0, H = 0, DPR = 1;
 
@@ -270,18 +277,23 @@
     shake: 0
   };
 
-  /* ================= Глобальный рейтинг (Табрика) ================= */
+  /* ================= Глобальный рейтинг ================= */
   let leaderboard = [];
   let lbLoading   = false;
   let lbError     = '';
+  let lbErrorKind = '';   // '' | 'err' | 'ok'
 
-  function isTabricaConfigured(){
-    return DATABASE_ID && TABLE_ID && TOKEN && TOKEN !== 'ВАШ_ТОКЕН';
+  function setStatus(text, kind){
+    lbError = text;
+    lbErrorKind = kind || '';
+    lbStatus.className = 'lb-status' + (kind ? ' ' + kind : '');
+    lbStatusOver.className = 'lb-status' + (kind ? ' ' + kind : '');
+    lbStatus.textContent = text;
+    lbStatusOver.textContent = text;
   }
 
   function renderLeaderboard(){
-    const targetLists  = [lbList, lbListOver];
-    const targetStatus = [lbStatus, lbStatusOver];
+    const targetLists = [lbList, lbListOver];
 
     const top = leaderboard
       .slice()
@@ -319,83 +331,140 @@
       });
     });
 
-    const statusTxt = lbLoading ? 'обновление…' : (lbError ? lbError : 'глобальный · Табрика');
-    targetStatus.forEach(s => { s.textContent = statusTxt; });
-
     game.best = top.length ? top[0].score : 0;
   }
 
   function extractRecords(json){
-    // Табрика может вернуть данные в разных формах — покрываем основные варианты.
     if (!json) return [];
-
-    // { data: { records: [...] } }
     if (json.data && Array.isArray(json.data.records)) return json.data.records;
-
-    // { data: [...] }
     if (Array.isArray(json.data)) return json.data;
-
-    // { records: [...] }
     if (Array.isArray(json.records)) return json.records;
-
-    // просто массив
     if (Array.isArray(json)) return json;
-
     return [];
   }
 
   function normalizeRecord(rec){
-    // Колонки могут лежать на верхнем уровне или внутри rec.data / rec.fields.
     const bag = rec && typeof rec === 'object'
       ? (rec.data || rec.fields || rec.attributes || rec)
       : {};
-
     const rawName  = bag[COL_NAME];
     const rawScore = bag[COL_SCORE];
-
     return {
       name: String(rawName == null ? 'Аноним' : rawName).slice(0, 12),
       score: Number(rawScore) || 0
     };
   }
 
-  async function loadLeaderboard(){
-    if (!isTabricaConfigured()){
-      lbLoading = false;
-      lbError = 'рейтинг не настроен';
-      renderLeaderboard();
-      return;
-    }
+  /* ==================== ДИАГНОСТИКА API ==================== */
+  async function debugApi(){
+    setStatus('тест API…', 'ok');
 
-    lbLoading = true;
-    lbError = '';
-    renderLeaderboard();
+    const url = `${TABRICA_BASE}/public/v1/databases/${DATABASE_ID}/tables/${TABLE_ID}/records?limit=2&response_format=names`;
+
+    let out = 'GET ' + url + '\n';
 
     try {
-      const url = `${TABRICA_BASE}/public/v1/databases/${DATABASE_ID}/tables/${TABLE_ID}/records` +
-                  `?limit=50&response_format=names`;
-
       const r = await fetch(url, {
         headers: { 'Authorization': `Bearer ${TOKEN}` }
       });
 
-      if (!r.ok) throw new Error('HTTP ' + r.status);
+      out += 'HTTP ' + r.status + ' ' + r.statusText + '\n';
+
+      const raw = await r.text();
+      out += 'Ответ:\n' + raw.slice(0, 800);
+
+      if (!r.ok){
+        setStatus('❌ ' + out, 'err');
+        console.warn('Tabrica debug failed:', r.status, raw);
+        return;
+      }
+
+      const json = JSON.parse(raw);
+      const records = extractRecords(json);
+
+      if (!records.length){
+        setStatus('✅ Токен рабочий, но таблица пуста. Импорт не сохранился?', 'ok');
+        return;
+      }
+
+      // Проверяем, что в записи есть нужные колонки
+      const first = records[0];
+      const bag = first.data || first.fields || first.attributes || first;
+      const hasName  = bag[COL_NAME]  !== undefined;
+      const hasScore = bag[COL_SCORE] !== undefined;
+
+      if (!hasName || !hasScore){
+        setStatus(
+          '⚠️ Токен рабочий, но в записи нет колонок "' + COL_NAME + '" / "' + COL_SCORE + '".\n' +
+          'Ключи в записи: ' + Object.keys(bag).join(', '),
+          'err'
+        );
+        return;
+      }
+
+      setStatus(
+        '✅ Всё работает. Записей: ' + records.length + '. Колонки найдены.',
+        'ok'
+      );
+
+      // Покажем в консоли, что реально пришло
+      console.log('[Tabrica debug]', json);
+    } catch(e){
+      out += '\nОшибка: ' + e.message;
+      setStatus('❌ ' + out, 'err');
+      console.warn('Tabrica debug exception:', e);
+    }
+  }
+
+  btnDebug.addEventListener('click', e => {
+    e.preventDefault();
+    debugApi();
+  });
+
+  /* ==================== Загрузка / отправка ==================== */
+  async function loadLeaderboard(){
+    lbLoading = true;
+    renderLeaderboard();
+    setStatus('загрузка…', '');
+
+    const url = `${TABRICA_BASE}/public/v1/databases/${DATABASE_ID}/tables/${TABLE_ID}/records?limit=50&response_format=names`;
+
+    try {
+      const r = await fetch(url, {
+        headers: { 'Authorization': `Bearer ${TOKEN}` }
+      });
+
+      if (!r.ok){
+        const raw = await r.text();
+        let msg = 'HTTP ' + r.status;
+        try {
+          const parsed = JSON.parse(raw);
+          if (parsed && parsed.message) msg += ' · ' + parsed.message;
+        } catch(_){}
+        throw new Error(msg);
+      }
 
       const json = await r.json();
       const records = extractRecords(json);
 
       leaderboard = records.map(normalizeRecord);
       lbLoading = false;
+      renderLeaderboard();
+      setStatus('глобальный · Табрика (' + leaderboard.length + ')', 'ok');
     } catch(e){
       lbLoading = false;
-      lbError = 'не удалось загрузить рейтинг';
-      console.warn('Tabrica leaderboard load failed:', e);
+      renderLeaderboard();
+      const m = String(e.message || e);
+      if (m.indexOf('public_unauthorized') >= 0){
+        setStatus('❌ Токен не принят. Нажмите «тест API» для деталей.', 'err');
+      } else {
+        setStatus('❌ ' + m, 'err');
+      }
+      console.warn('Tabrica load failed:', e);
     }
-    renderLeaderboard();
   }
 
   async function submitScore(name, score){
-    if (!isTabricaConfigured()) return false;
     if (!name || score <= 0) return false;
 
     const already = leaderboard.some(e => e.name === name && e.score === score);
@@ -420,15 +489,23 @@
         body: JSON.stringify(body)
       });
 
-      if (!r.ok) throw new Error('HTTP ' + r.status);
+      if (!r.ok){
+        const raw = await r.text();
+        console.warn('Tabrica submit failed:', r.status, raw);
+        let msg = 'не удалось отправить результат';
+        try {
+          const parsed = JSON.parse(raw);
+          if (parsed && parsed.message) msg += ' · ' + parsed.message;
+        } catch(_){}
+        setStatus('❌ ' + msg, 'err');
+        return false;
+      }
 
-      // Обновляем таблицу с сервера — показываем актуальные данные
       await loadLeaderboard();
       return true;
     } catch(e){
-      console.warn('Tabrica leaderboard submit failed:', e);
-      lbError = 'не удалось отправить результат';
-      renderLeaderboard();
+      console.warn('Tabrica submit exception:', e);
+      setStatus('❌ ' + String(e.message || e), 'err');
       return false;
     }
   }
@@ -507,7 +584,7 @@
     window.visualViewport.addEventListener('resize', resize);
   }
 
-  /* ================= input (touch-ready) ================= */
+  /* ================= input ================= */
   const keys = { left: false, right: false };
   let pointerTarget = null;
   let activePointerId = null;
