@@ -92,7 +92,7 @@
   .hint{color:#5d6c81;font-size:12.5px;letter-spacing:.6px;margin-top:4px}
 
   /* ---------- Leaderboard ---------- */
-  #leaderboard{
+  #leaderboard, #leaderboardOver{
     width:100%;max-width:360px;
     background:rgba(20,32,50,.6);
     border:1px solid rgba(125,211,252,.15);
@@ -100,21 +100,21 @@
     padding:14px 16px;
     margin-top:10px;
   }
-  #leaderboard h2{
+  #leaderboard h2, #leaderboardOver h2{
     font-size:14px;letter-spacing:1px;color:#7dd3fc;
     text-transform:uppercase;margin-bottom:10px;font-weight:800;
   }
-  #lbList{list-style:none;display:flex;flex-direction:column;gap:6px}
-  #lbList li{
+  #lbList, #lbListOver{list-style:none;display:flex;flex-direction:column;gap:6px}
+  #lbList li, #lbListOver li{
     display:flex;justify-content:space-between;align-items:center;
     font-size:14px;color:#c5d4e8;padding:4px 0;
     border-bottom:1px solid rgba(255,255,255,.05);
   }
-  #lbList li:last-child{border-bottom:0}
-  #lbList .lb-rank{color:#5d6c81;font-weight:800;width:24px;text-align:left}
-  #lbList .lb-name{flex:1;text-align:left;padding-left:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  #lbList .lb-score{color:#a7e85c;font-weight:800;font-variant-numeric:tabular-nums}
-  #lbList .lb-empty{color:#5d6c81;font-size:13px;justify-content:center}
+  #lbList li:last-child, #lbListOver li:last-child{border-bottom:0}
+  #lbList .lb-rank, #lbListOver .lb-rank{color:#5d6c81;font-weight:800;width:24px;text-align:left}
+  #lbList .lb-name, #lbListOver .lb-name{flex:1;text-align:left;padding-left:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #lbList .lb-score, #lbListOver .lb-score{color:#a7e85c;font-weight:800;font-variant-numeric:tabular-nums}
+  #lbList .lb-empty, #lbListOver .lb-empty{color:#5d6c81;font-size:13px;justify-content:center}
   .lb-status{font-size:11px;color:#5d6c81;margin-top:8px;letter-spacing:.4px}
 
   /* ---------- Name input ---------- */
@@ -145,7 +145,7 @@
     .overlay h1{font-size:clamp(20px,5.5vw,28px)}
     button{padding:12px 30px;font-size:15px}
     #finalScore{font-size:42px}
-    #leaderboard{padding:10px 12px}
+    #leaderboard, #leaderboardOver{padding:10px 12px}
   }
 </style>
 </head>
@@ -206,12 +206,23 @@
 (function(){
   'use strict';
 
-  /* ================= НАСТРОЙКИ JSONBIN.IO ================= */
-  // ⚠️ ВСТАВЬТЕ СЮДА СВОИ ЗНАЧЕНИЯ
-  const BIN_ID     = 'ВАШ_BIN_ID';      // например, '65abc123def456789'
-  const MASTER_KEY = 'ВАШ_MASTER_KEY';  // например, '$2b$10$...'
-  const BIN_URL    = 'https://api.jsonbin.io/v3/b/' + BIN_ID;
-  /* ========================================================= */
+  /* ========================================================
+     НАСТРОЙКИ ТАБРИКИ
+     ======================================================== */
+  const DATABASE_ID = 207;
+  const TABLE_ID    = 289;
+
+  // ⚠️ ВНИМАНИЕ: этот токен был показан в открытом чате.
+  // Перед публикацией игры обязательно перевыпустите его в панели Табрики
+  // (Настройки организации → API) и подставьте новый.
+  const TOKEN = 'tab_qqtg-r2LF16-Bmw20PbAbc_WgqCJ08eEe-IWowgkW4aTqhmn27Gggo4edj2YTcPh';
+
+  // Названия колонок в вашей таблице Табрики — должны совпадать ТОЧНО
+  const COL_NAME  = 'name';
+  const COL_SCORE = 'score';
+
+  const TABRICA_BASE = 'https://api.tabrica.ru';
+  /* ======================================================== */
 
   const wrap     = document.getElementById('wrap');
   const canvas   = document.getElementById('c');
@@ -246,7 +257,7 @@
   const game = {
     mode: 'menu',
     score: 0,
-    best: 0,               // глобальный лучший результат (макс. в таблице)
+    best: 0,
     lives: MAX_LIVES,
     combo: 0,
     maxCombo: 0,
@@ -259,16 +270,19 @@
     shake: 0
   };
 
-  /* ================= Глобальный рейтинг ================= */
-  let leaderboard = [];        // [{ name, score }, ...]
+  /* ================= Глобальный рейтинг (Табрика) ================= */
+  let leaderboard = [];
   let lbLoading   = false;
   let lbError     = '';
+
+  function isTabricaConfigured(){
+    return DATABASE_ID && TABLE_ID && TOKEN && TOKEN !== 'ВАШ_ТОКЕН';
+  }
 
   function renderLeaderboard(){
     const targetLists  = [lbList, lbListOver];
     const targetStatus = [lbStatus, lbStatusOver];
 
-    // сортируем по убыванию и берём топ-10
     const top = leaderboard
       .slice()
       .sort((a, b) => b.score - a.score)
@@ -285,15 +299,19 @@
       }
       top.forEach((entry, i) => {
         const li = document.createElement('li');
+
         const rank = document.createElement('span');
         rank.className = 'lb-rank';
         rank.textContent = (i + 1) + '.';
+
         const name = document.createElement('span');
         name.className = 'lb-name';
         name.textContent = entry.name;
+
         const score = document.createElement('span');
         score.className = 'lb-score';
         score.textContent = entry.score;
+
         li.appendChild(rank);
         li.appendChild(name);
         li.appendChild(score);
@@ -301,18 +319,50 @@
       });
     });
 
-    const statusTxt = lbLoading ? 'обновление…' : (lbError ? lbError : 'глобальный · jsonbin.io');
+    const statusTxt = lbLoading ? 'обновление…' : (lbError ? lbError : 'глобальный · Табрика');
     targetStatus.forEach(s => { s.textContent = statusTxt; });
 
-    // обновляем «лучший результат» для экрана Game Over
-    if (top.length) game.best = top[0].score;
-    else game.best = 0;
+    game.best = top.length ? top[0].score : 0;
+  }
+
+  function extractRecords(json){
+    // Табрика может вернуть данные в разных формах — покрываем основные варианты.
+    if (!json) return [];
+
+    // { data: { records: [...] } }
+    if (json.data && Array.isArray(json.data.records)) return json.data.records;
+
+    // { data: [...] }
+    if (Array.isArray(json.data)) return json.data;
+
+    // { records: [...] }
+    if (Array.isArray(json.records)) return json.records;
+
+    // просто массив
+    if (Array.isArray(json)) return json;
+
+    return [];
+  }
+
+  function normalizeRecord(rec){
+    // Колонки могут лежать на верхнем уровне или внутри rec.data / rec.fields.
+    const bag = rec && typeof rec === 'object'
+      ? (rec.data || rec.fields || rec.attributes || rec)
+      : {};
+
+    const rawName  = bag[COL_NAME];
+    const rawScore = bag[COL_SCORE];
+
+    return {
+      name: String(rawName == null ? 'Аноним' : rawName).slice(0, 12),
+      score: Number(rawScore) || 0
+    };
   }
 
   async function loadLeaderboard(){
-    if (BIN_ID === 'ВАШ_BIN_ID' || MASTER_KEY === 'ВАШ_MASTER_KEY'){
+    if (!isTabricaConfigured()){
       lbLoading = false;
-      lbError = 'рейтинг не настроен (вставьте ключи JSONBin)';
+      lbError = 'рейтинг не настроен';
       renderLeaderboard();
       return;
     }
@@ -322,66 +372,61 @@
     renderLeaderboard();
 
     try {
-      const r = await fetch(BIN_URL + '/latest', {
-        headers: { 'X-Master-Key': MASTER_KEY }
+      const url = `${TABRICA_BASE}/public/v1/databases/${DATABASE_ID}/tables/${TABLE_ID}/records` +
+                  `?limit=50&response_format=names`;
+
+      const r = await fetch(url, {
+        headers: { 'Authorization': `Bearer ${TOKEN}` }
       });
+
       if (!r.ok) throw new Error('HTTP ' + r.status);
-      const data = await r.json();
-      const record = data.record || data;
-      leaderboard = Array.isArray(record) ? record : [];
+
+      const json = await r.json();
+      const records = extractRecords(json);
+
+      leaderboard = records.map(normalizeRecord);
       lbLoading = false;
     } catch(e){
       lbLoading = false;
       lbError = 'не удалось загрузить рейтинг';
-      console.warn('Leaderboard load failed:', e);
+      console.warn('Tabrica leaderboard load failed:', e);
     }
     renderLeaderboard();
   }
 
   async function submitScore(name, score){
-    if (BIN_ID === 'ВАШ_BIN_ID' || MASTER_KEY === 'ВАШ_MASTER_KEY') return false;
+    if (!isTabricaConfigured()) return false;
     if (!name || score <= 0) return false;
 
-    // защита от дурака: не отправляем, если такой же результат уже есть у этого игрока
     const already = leaderboard.some(e => e.name === name && e.score === score);
     if (already) return false;
 
-    // читаем актуальные данные, чтобы не затереть чужие результаты
-    let current = [];
     try {
-      const r = await fetch(BIN_URL + '/latest', {
-        headers: { 'X-Master-Key': MASTER_KEY }
-      });
-      if (r.ok){
-        const d = await r.json();
-        const rec = d.record || d;
-        current = Array.isArray(rec) ? rec : [];
-      }
-    } catch(e){ /* если не прочитали — работаем с тем, что есть */ }
+      const url = `${TABRICA_BASE}/public/v1/databases/${DATABASE_ID}/tables/${TABLE_ID}/records`;
 
-    if (!current.length) current = leaderboard.slice();
+      const body = {
+        data: {
+          [COL_NAME]: name.slice(0, 12),
+          [COL_SCORE]: score
+        }
+      };
 
-    current.push({ name: name.slice(0, 12), score: score });
-
-    // оставляем только топ-50, чтобы бин не разрастался
-    current.sort((a, b) => b.score - a.score);
-    current = current.slice(0, 50);
-
-    try {
-      const r = await fetch(BIN_URL, {
-        method: 'PUT',
+      const r = await fetch(url, {
+        method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'X-Master-Key': MASTER_KEY
+          'Authorization': `Bearer ${TOKEN}`,
+          'Content-Type': 'application/json'
         },
-        body: JSON.stringify(current)
+        body: JSON.stringify(body)
       });
+
       if (!r.ok) throw new Error('HTTP ' + r.status);
-      leaderboard = current;
-      renderLeaderboard();
+
+      // Обновляем таблицу с сервера — показываем актуальные данные
+      await loadLeaderboard();
       return true;
     } catch(e){
-      console.warn('Leaderboard submit failed:', e);
+      console.warn('Tabrica leaderboard submit failed:', e);
       lbError = 'не удалось отправить результат';
       renderLeaderboard();
       return false;
@@ -538,7 +583,6 @@
   document.getElementById('btnRestart').addEventListener('click', startGame);
 
   function startGame(){
-    // если рейтинг ещё грузится — не мешаем играть, но подгрузим позже
     if (!leaderboard.length && !lbLoading) loadLeaderboard();
 
     game.mode = 'playing';
@@ -572,15 +616,9 @@
     beep(180, 0.35, 'sawtooth', 0.08);
     setTimeout(() => beep(110, 0.5, 'sawtooth', 0.08), 140);
 
-    // Отправляем результат в глобальный рейтинг
     const name = (nameInput.value || '').trim().slice(0, 12) || 'Аноним';
     if (game.score > 0){
-      submitScore(name, game.score).then(ok => {
-        if (ok){
-          // перезагружаем таблицу, чтобы показать свежие данные
-          loadLeaderboard();
-        }
-      });
+      submitScore(name, game.score);
     } else {
       renderLeaderboard();
     }
@@ -1050,7 +1088,7 @@
   resize();
   wolf.x = W / 2;
   updateHUD();
-  loadLeaderboard();        // подгружаем глобальный рейтинг при старте
+  loadLeaderboard();
   requestAnimationFrame(loop);
 
   document.addEventListener('visibilitychange', () => {
