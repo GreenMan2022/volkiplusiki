@@ -88,61 +88,27 @@
   }
   button:active{transform:translateY(5px);box-shadow:0 3px 0 #3f7a16,0 6px 14px rgba(111,191,46,.3)}
   .hint{color:#5d6c81;font-size:12.5px;letter-spacing:.6px;margin-top:4px}
-  #btnDebug{
-    background:rgba(20,32,50,.7);color:#7dd3fc;font-size:12px;
-    padding:8px 18px;margin-top:0;box-shadow:none;
-    border:1px solid rgba(125,211,252,.3);font-weight:700;
-  }
-  #btnDebug:active{transform:none;box-shadow:none;background:rgba(20,32,50,.9)}
 
-  #leaderboard, #leaderboardOver{
-    width:100%;max-width:360px;
-    background:rgba(20,32,50,.6);
-    border:1px solid rgba(125,211,252,.15);
-    border-radius:18px;
-    padding:14px 16px;
-    margin-top:10px;
+  #globalCounter{
+    margin-top: 12px;
+    color: #93a3b8;
+    font-size: 13px;
+    letter-spacing: .4px;
+    background: rgba(20,32,50,.7);
+    border: 1px solid rgba(125,211,252,.18);
+    border-radius: 999px;
+    padding: 7px 18px;
+    display: none;
+    font-weight: 600;
   }
-  #leaderboard h2, #leaderboardOver h2{
-    font-size:14px;letter-spacing:1px;color:#7dd3fc;
-    text-transform:uppercase;margin-bottom:10px;font-weight:800;
-  }
-  #lbList, #lbListOver{list-style:none;display:flex;flex-direction:column;gap:6px}
-  #lbList li, #lbListOver li{
-    display:flex;justify-content:space-between;align-items:center;
-    font-size:14px;color:#c5d4e8;padding:4px 0;
-    border-bottom:1px solid rgba(255,255,255,.05);
-  }
-  #lbList li:last-child, #lbListOver li:last-child{border-bottom:0}
-  #lbList .lb-rank, #lbListOver .lb-rank{color:#5d6c81;font-weight:800;width:24px;text-align:left}
-  #lbList .lb-name, #lbListOver .lb-name{flex:1;text-align:left;padding-left:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  #lbList .lb-score, #lbListOver .lb-score{color:#a7e85c;font-weight:800;font-variant-numeric:tabular-nums}
-  #lbList .lb-empty, #lbListOver .lb-empty{color:#5d6c81;font-size:13px;justify-content:center}
-  .lb-status{
-    font-size:11px;color:#5d6c81;margin-top:8px;letter-spacing:.4px;
-    word-break:break-all;line-height:1.4;
-  }
-  .lb-status.err{color:#ff8a8a}
-  .lb-status.ok{color:#a7e85c}
-
-  .nameRow{
-    display:flex;gap:8px;width:100%;max-width:340px;margin-top:4px;
-  }
-  .nameRow input{
-    flex:1;font:inherit;font-size:15px;padding:12px 16px;
-    border-radius:14px;border:1px solid rgba(125,211,252,.25);
-    background:rgba(10,18,30,.7);color:#eaf2ff;outline:none;
-    -webkit-user-select:text;user-select:text;
-  }
-  .nameRow input::placeholder{color:#4a5a70}
-  .nameRow input:focus{border-color:#7dd3fc}
+  #globalCounter.show{ display: inline-block; }
+  #globalCounter b{ color: #7dd3fc; font-weight: 800; }
 
   #finalScore{
     font-size:58px;font-weight:900;color:#a7e85c;line-height:1;
     text-shadow:0 0 34px rgba(167,232,92,.45);
   }
   #best{font-size:13.5px;color:#7e8ea3;letter-spacing:.5px;line-height:1.7}
-  #best span{color:#ffd54a;font-weight:800}
   #overTitle{font-size:clamp(24px,6.4vw,34px)}
 
   @media (max-height:700px){
@@ -152,7 +118,6 @@
     .overlay h1{font-size:clamp(20px,5.5vw,28px)}
     button{padding:12px 30px;font-size:15px}
     #finalScore{font-size:42px}
-    #leaderboard, #leaderboardOver{padding:10px 12px}
   }
 </style>
 </head>
@@ -177,34 +142,17 @@
        Плюсиков меньше нуля — <b class="bad">−жизнь</b>.<br>
        Поймал <b class="bad">минус</b> — сразу <b class="bad">−жизнь</b>.</p>
 
-    <div class="nameRow">
-      <input id="playerName" type="text" maxlength="12" placeholder="Твой ник (до 12 симв.)" autocomplete="nickname">
-    </div>
-
     <button id="btnStart">Погнали</button>
     <div class="hint" id="hint">мышь · палец · ← →</div>
 
-    <div id="leaderboard">
-      <h2>🏆 Глобальный топ</h2>
-      <ul id="lbList"><li class="lb-empty">загрузка…</li></ul>
-      <div class="lb-status" id="lbStatus"></div>
-    </div>
-
-    <button id="btnDebug">🔍 тест API</button>
+    <div id="globalCounter">🌍 Заходов в игру: <b>…</b></div>
   </div>
 
   <div class="overlay hidden" id="over">
     <div class="emoji" id="overEmoji">💀</div>
     <h1 id="overTitle">Волк ушёл в минус</h1>
     <div id="finalScore">0</div>
-    <p id="best">Рекорд: <span>0</span></p>
-
-    <div id="leaderboardOver">
-      <h2>🏆 Глобальный топ</h2>
-      <ul id="lbListOver"><li class="lb-empty">загрузка…</li></ul>
-      <div class="lb-status" id="lbStatusOver"></div>
-    </div>
-
+    <p id="best">Комбо ×0</p>
     <button id="btnRestart">Ещё разок</button>
   </div>
 </div>
@@ -214,21 +162,82 @@
   'use strict';
 
   /* ========================================================
-     НАСТРОЙКИ ТАБРИКИ
+     YANDEX GAMES SDK
      ======================================================== */
-  const DATABASE_ID = 207;
-  const TABLE_ID    = 289;
+  let ysdk = null;
+  let sdkReady = false;
 
-  // ⚠️ Токен из чата — ПЕРЕВЫПУСТИТЕ его после проверки, что всё работает.
-  const TOKEN = 'tab_OqYOjqj2RH2BrKV44mTRebERXBJUsPVwiCLWc3UlAxcZXI3b5vWjZh2aigNIZQWF';
+  // Загружаем SDK. Путь /sdk.js — относительный, обязателен при загрузке
+  // архива на сервер Яндекса[reference:1].
+  (function loadYandexSDK(){
+    const script = document.createElement('script');
+    script.src = '/sdk.js';
+    script.async = true;
+    script.onload = initYandexSDK;
+    script.onerror = () => {
+      console.warn('Yandex SDK не загрузился (возможно, локальный запуск)');
+      sdkReady = true; // чтобы игра работала и без SDK
+    };
+    document.head.appendChild(script);
+  })();
 
-  // ⚠️ Проверьте названия колонок в таблице.
-  // Если они называются не name/score — измените здесь.
-  const COL_NAME  = 'name';
-  const COL_SCORE = 'score';
+  async function initYandexSDK(){
+    try {
+      ysdk = await YaGames.init();
+      sdkReady = true;
 
-  const TABRICA_BASE = 'https://api.tabrica.ru';
-  /* ======================================================== */
+      // Сообщаем платформе, что игра загрузилась и можно играть[reference:2]
+      ysdk.features.LoadingAPI?.ready();
+      console.log('Yandex SDK готов');
+    } catch(e){
+      console.warn('Ошибка инициализации Yandex SDK:', e);
+      sdkReady = true; // не блокируем игру
+    }
+  }
+
+  // ---- Реклама ----
+  function showInterstitialAd(onClose){
+    if (!ysdk || !ysdk.adv){
+      if (onClose) onClose();
+      return;
+    }
+    try {
+      ysdk.adv.showFullscreenAdv({
+        callbacks: {
+          onClose: (wasShown) => {
+            console.log(wasShown ? 'Реклама показана' : 'Реклама не показана');
+            if (onClose) onClose();
+          },
+          onError: (e) => {
+            console.warn('Ошибка рекламы:', e);
+            if (onClose) onClose();
+          }
+        }
+      });
+    } catch(e){
+      console.warn('Не удалось вызвать рекламу:', e);
+      if (onClose) onClose();
+    }
+  }
+
+  // ---- Геймплейные события ----
+  function gameplayStart(){
+    if (ysdk && ysdk.features && ysdk.features.GameplayAPI){
+      ysdk.features.GameplayAPI.start();
+    }
+  }
+  function gameplayStop(){
+    if (ysdk && ysdk.features && ysdk.features.GameplayAPI){
+      ysdk.features.GameplayAPI.stop();
+    }
+  }
+
+  /* ========================================================
+     ГЛОБАЛЬНЫЙ СЧЁТЧИК (Abacus)
+     ======================================================== */
+  const GLOBAL_NS  = 'volkiplyusiki';
+  const GLOBAL_KEY = 'visits';
+  const SESSION_FLAG = 'volk_plus_counted';
 
   const wrap     = document.getElementById('wrap');
   const canvas   = document.getElementById('c');
@@ -245,12 +254,7 @@
   const overTitleEl= document.getElementById('overTitle');
   const overEmojiEl= document.getElementById('overEmoji');
   const hintEl     = document.getElementById('hint');
-  const nameInput  = document.getElementById('playerName');
-  const lbList     = document.getElementById('lbList');
-  const lbStatus   = document.getElementById('lbStatus');
-  const lbListOver = document.getElementById('lbListOver');
-  const lbStatusOver = document.getElementById('lbStatusOver');
-  const btnDebug   = document.getElementById('btnDebug');
+  const counterEl  = document.getElementById('globalCounter');
 
   let W = 0, H = 0, DPR = 1;
 
@@ -264,7 +268,6 @@
   const game = {
     mode: 'menu',
     score: 0,
-    best: 0,
     lives: MAX_LIVES,
     combo: 0,
     maxCombo: 0,
@@ -277,236 +280,39 @@
     shake: 0
   };
 
-  /* ================= Глобальный рейтинг ================= */
-  let leaderboard = [];
-  let lbLoading   = false;
-  let lbError     = '';
-  let lbErrorKind = '';   // '' | 'err' | 'ok'
+  /* ================= Глобальный счётчик ================= */
+  let globalVisits;
 
-  function setStatus(text, kind){
-    lbError = text;
-    lbErrorKind = kind || '';
-    lbStatus.className = 'lb-status' + (kind ? ' ' + kind : '');
-    lbStatusOver.className = 'lb-status' + (kind ? ' ' + kind : '');
-    lbStatus.textContent = text;
-    lbStatusOver.textContent = text;
-  }
-
-  function renderLeaderboard(){
-    const targetLists = [lbList, lbListOver];
-
-    const top = leaderboard
-      .slice()
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 10);
-
-    targetLists.forEach(list => {
-      list.innerHTML = '';
-      if (!top.length){
-        const li = document.createElement('li');
-        li.className = 'lb-empty';
-        li.textContent = lbLoading ? 'загрузка…' : 'пока пусто — стань первым';
-        list.appendChild(li);
-        return;
-      }
-      top.forEach((entry, i) => {
-        const li = document.createElement('li');
-
-        const rank = document.createElement('span');
-        rank.className = 'lb-rank';
-        rank.textContent = (i + 1) + '.';
-
-        const name = document.createElement('span');
-        name.className = 'lb-name';
-        name.textContent = entry.name;
-
-        const score = document.createElement('span');
-        score.className = 'lb-score';
-        score.textContent = entry.score;
-
-        li.appendChild(rank);
-        li.appendChild(name);
-        li.appendChild(score);
-        list.appendChild(li);
-      });
-    });
-
-    game.best = top.length ? top[0].score : 0;
-  }
-
-  function extractRecords(json){
-    if (!json) return [];
-    if (json.data && Array.isArray(json.data.records)) return json.data.records;
-    if (Array.isArray(json.data)) return json.data;
-    if (Array.isArray(json.records)) return json.records;
-    if (Array.isArray(json)) return json;
-    return [];
-  }
-
-  function normalizeRecord(rec){
-    const bag = rec && typeof rec === 'object'
-      ? (rec.data || rec.fields || rec.attributes || rec)
-      : {};
-    const rawName  = bag[COL_NAME];
-    const rawScore = bag[COL_SCORE];
-    return {
-      name: String(rawName == null ? 'Аноним' : rawName).slice(0, 12),
-      score: Number(rawScore) || 0
-    };
-  }
-
-  /* ==================== ДИАГНОСТИКА API ==================== */
-  async function debugApi(){
-    setStatus('тест API…', 'ok');
-
-    const url = `${TABRICA_BASE}/public/v1/databases/${DATABASE_ID}/tables/${TABLE_ID}/records?limit=2&response_format=names`;
-
-    let out = 'GET ' + url + '\n';
+  async function loadGlobalCounter(){
+    const shouldCount = !sessionStorage.getItem(SESSION_FLAG);
+    if (shouldCount) sessionStorage.setItem(SESSION_FLAG, '1');
 
     try {
-      const r = await fetch(url, {
-        headers: { 'Authorization': `Bearer ${TOKEN}` }
-      });
+      const ctl = new AbortController();
+      const to = setTimeout(() => ctl.abort(), 5000);
+      const url = shouldCount
+        ? `https://abacus.jasoncameron.dev/hit/${GLOBAL_NS}/${GLOBAL_KEY}`
+        : `https://abacus.jasoncameron.dev/get/${GLOBAL_NS}/${GLOBAL_KEY}`;
 
-      out += 'HTTP ' + r.status + ' ' + r.statusText + '\n';
+      const r = await fetch(url, { signal: ctl.signal, cache: 'no-store' });
+      clearTimeout(to);
+      if (!r.ok) throw new Error('HTTP ' + r.status);
 
-      const raw = await r.text();
-      out += 'Ответ:\n' + raw.slice(0, 800);
-
-      if (!r.ok){
-        setStatus('❌ ' + out, 'err');
-        console.warn('Tabrica debug failed:', r.status, raw);
-        return;
-      }
-
-      const json = JSON.parse(raw);
-      const records = extractRecords(json);
-
-      if (!records.length){
-        setStatus('✅ Токен рабочий, но таблица пуста. Импорт не сохранился?', 'ok');
-        return;
-      }
-
-      // Проверяем, что в записи есть нужные колонки
-      const first = records[0];
-      const bag = first.data || first.fields || first.attributes || first;
-      const hasName  = bag[COL_NAME]  !== undefined;
-      const hasScore = bag[COL_SCORE] !== undefined;
-
-      if (!hasName || !hasScore){
-        setStatus(
-          '⚠️ Токен рабочий, но в записи нет колонок "' + COL_NAME + '" / "' + COL_SCORE + '".\n' +
-          'Ключи в записи: ' + Object.keys(bag).join(', '),
-          'err'
-        );
-        return;
-      }
-
-      setStatus(
-        '✅ Всё работает. Записей: ' + records.length + '. Колонки найдены.',
-        'ok'
-      );
-
-      // Покажем в консоли, что реально пришло
-      console.log('[Tabrica debug]', json);
-    } catch(e){
-      out += '\nОшибка: ' + e.message;
-      setStatus('❌ ' + out, 'err');
-      console.warn('Tabrica debug exception:', e);
+      const j = await r.json();
+      globalVisits = (typeof j.value === 'number') ? j.value : null;
+    } catch (e) {
+      console.warn('Глобальный счётчик недоступен:', e);
+      globalVisits = null;
     }
+    updateCounterUI();
   }
 
-  btnDebug.addEventListener('click', e => {
-    e.preventDefault();
-    debugApi();
-  });
-
-  /* ==================== Загрузка / отправка ==================== */
-  async function loadLeaderboard(){
-    lbLoading = true;
-    renderLeaderboard();
-    setStatus('загрузка…', '');
-
-    const url = `${TABRICA_BASE}/public/v1/databases/${DATABASE_ID}/tables/${TABLE_ID}/records?limit=50&response_format=names`;
-
-    try {
-      const r = await fetch(url, {
-        headers: { 'Authorization': `Bearer ${TOKEN}` }
-      });
-
-      if (!r.ok){
-        const raw = await r.text();
-        let msg = 'HTTP ' + r.status;
-        try {
-          const parsed = JSON.parse(raw);
-          if (parsed && parsed.message) msg += ' · ' + parsed.message;
-        } catch(_){}
-        throw new Error(msg);
-      }
-
-      const json = await r.json();
-      const records = extractRecords(json);
-
-      leaderboard = records.map(normalizeRecord);
-      lbLoading = false;
-      renderLeaderboard();
-      setStatus('глобальный · Табрика (' + leaderboard.length + ')', 'ok');
-    } catch(e){
-      lbLoading = false;
-      renderLeaderboard();
-      const m = String(e.message || e);
-      if (m.indexOf('public_unauthorized') >= 0){
-        setStatus('❌ Токен не принят. Нажмите «тест API» для деталей.', 'err');
-      } else {
-        setStatus('❌ ' + m, 'err');
-      }
-      console.warn('Tabrica load failed:', e);
-    }
-  }
-
-  async function submitScore(name, score){
-    if (!name || score <= 0) return false;
-
-    const already = leaderboard.some(e => e.name === name && e.score === score);
-    if (already) return false;
-
-    try {
-      const url = `${TABRICA_BASE}/public/v1/databases/${DATABASE_ID}/tables/${TABLE_ID}/records`;
-
-      const body = {
-        data: {
-          [COL_NAME]: name.slice(0, 12),
-          [COL_SCORE]: score
-        }
-      };
-
-      const r = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${TOKEN}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(body)
-      });
-
-      if (!r.ok){
-        const raw = await r.text();
-        console.warn('Tabrica submit failed:', r.status, raw);
-        let msg = 'не удалось отправить результат';
-        try {
-          const parsed = JSON.parse(raw);
-          if (parsed && parsed.message) msg += ' · ' + parsed.message;
-        } catch(_){}
-        setStatus('❌ ' + msg, 'err');
-        return false;
-      }
-
-      await loadLeaderboard();
-      return true;
-    } catch(e){
-      console.warn('Tabrica submit exception:', e);
-      setStatus('❌ ' + String(e.message || e), 'err');
-      return false;
+  function updateCounterUI(){
+    if (typeof globalVisits === 'number'){
+      counterEl.innerHTML = '🌍 Заходов в игру: <b>' + globalVisits.toLocaleString('ru-RU') + '</b>';
+      counterEl.classList.add('show');
+    } else if (globalVisits === null){
+      counterEl.classList.remove('show');
     }
   }
 
@@ -660,8 +466,6 @@
   document.getElementById('btnRestart').addEventListener('click', startGame);
 
   function startGame(){
-    if (!leaderboard.length && !lbLoading) loadLeaderboard();
-
     game.mode = 'playing';
     game.score = 0;
     game.lives = MAX_LIVES;
@@ -683,6 +487,9 @@
     menuEl.classList.add('hidden');
     overEl.classList.add('hidden');
     updateHUD();
+
+    // Сообщаем SDK о старте геймплея[reference:3]
+    gameplayStart();
   }
 
   function gameOver(){
@@ -693,23 +500,19 @@
     beep(180, 0.35, 'sawtooth', 0.08);
     setTimeout(() => beep(110, 0.5, 'sawtooth', 0.08), 140);
 
-    const name = (nameInput.value || '').trim().slice(0, 12) || 'Аноним';
-    if (game.score > 0){
-      submitScore(name, game.score);
-    } else {
-      renderLeaderboard();
-    }
+    // Сообщаем SDK об остановке геймплея[reference:4]
+    gameplayStop();
 
-    if (game.score > game.best){
-      overTitleEl.textContent = 'Новый рекорд!';
-      overEmojiEl.textContent = '🏆';
-    } else {
-      overTitleEl.textContent = 'Волк ушёл в минус';
-      overEmojiEl.textContent = '💀';
-    }
+    overTitleEl.textContent = 'Волк ушёл в минус';
+    overEmojiEl.textContent = '💀';
     finalEl.textContent = game.score;
-    bestEl.innerHTML = 'Лучший в мире: <span>' + game.best + '</span> · Комбо ×' + game.maxCombo;
-    overEl.classList.remove('hidden');
+    bestEl.textContent = 'Комбо ×' + game.maxCombo;
+
+    // Показываем полноэкранную рекламу после проигрыша.
+    // Рекомендуется показывать её после действия пользователя[reference:5].
+    showInterstitialAd(() => {
+      overEl.classList.remove('hidden');
+    });
   }
 
   /* ================= HUD ================= */
@@ -1165,11 +968,14 @@
   resize();
   wolf.x = W / 2;
   updateHUD();
-  loadLeaderboard();
+  loadGlobalCounter();
   requestAnimationFrame(loop);
 
   document.addEventListener('visibilitychange', () => {
     last = performance.now();
+    // При уходе со вкладки сообщаем SDK о паузе[reference:6]
+    if (document.hidden) gameplayStop();
+    else if (game.mode === 'playing') gameplayStart();
   });
 
 })();
